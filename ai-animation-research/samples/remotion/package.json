@@ -1,0 +1,30 @@
+{
+  "name": "explainer-samples",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "studio": "remotion studio",
+    "render3d": "remotion render Explainer3D out/explainer3d_cdn.mp4 --gl=angle --crf=18",
+    "render2d": "remotion render Explainer2D out/explainer2d_login.mp4 --crf=18"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@react-three/fiber": "^9.8.2",
+    "@remotion/cli": "^4.0.538",
+    "@remotion/google-fonts": "^4.0.538",
+    "@remotion/renderer": "^4.0.538",
+    "@remotion/three": "^4.0.538",
+    "@remotion/transitions": "^4.0.538",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "^4.0.538",
+    "three": "^0.186.1",
+    "typescript": "^7.0.2"
+  }
+}
