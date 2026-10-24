@@ -198,6 +198,7 @@ All four are original scenes rendered in this session (no assets from any channe
 | **CDN explainer, 3D** | A: Remotion + Three.js | hook card slam, far-origin "slow packet" with a counter 0→180 ms, edge nodes spring in, fast packets + counter 180→40 ms, cache replication, payoff card; flash transitions, camera push/orbit/pull, vinyl materials, shadows, ACES, grain + vignette, word-pop captions | `samples/remotion/src/Explainer3D.tsx`, `renders/explainer3d_cdn.mp4` |
 | **Login explainer, 2D** | A: Remotion (HTML/SVG) | system diagram building node by node, self-drawing edges, labelled packets, a kinetic "NEVER" slam with the diagram dimmed, payoff card | `samples/remotion/src/Explainer2D.tsx`, `renders/explainer2d_login.mp4` |
 | **CDN beat, real 3D** | C: Blender `bpy` (Cycles CPU) | the same beat with real lights, contact shadows, depth of field, AgX tone mapping, overshoot pop-ins, arc packet | `samples/blender/scene_cdn.py`, `renders/blender_cdn.mp4` |
+| **Pixel Dungeon** | A: Remotion Canvas 2D, code-drawn pixel art | see Section 9 | `samples/remotion/src/PixelDungeon.tsx`, `renders/pixel_dungeon.mp4` |
 | **Hashing explainer** | 3Blue1Brown-style Manim | text hook, boxes/arrows drawing, scrambling digest, crossed-out reverse arrow with flash, ticking counter, payoff | `samples/manim/hashing.py`, `renders/manim_hashing.mp4` |
 
 Run them:
@@ -218,6 +219,49 @@ Shared `samples/remotion/src/ui.tsx` is the reusable kit: `Caption` (word pops w
 2. **Add generative hero shots (B)** only for things code can't do (organic cutaways, characters). Lock style at the keyframe stage, one action per clip, overlay every piece of text in code.
 3. **Add Blender (C)** when you need one long continuous 3D camera move or real physics; use Claude via the MCP to build it, EEVEE to iterate, Cycles for the final.
 4. **Audio last but never skipped:** SFX on every hit, music ducked under the voice, -14 LUFS.
+
+---
+
+## 9. Pixel-art / "2D graphics in code" (follow-up on the Studio Igor video)
+
+You pointed me at *"2D-графика кодом — реально? Делаем 5 игр с Claude и GPT"* (Студия Игор). YouTube blocks anonymous downloads from this datacenter, so I could not watch it; the public listing says it compares **two ways to get 2D game art out of an LLM: draw everything in code, or generate images in parts**, across five games from a pixel-art dungeon to a Diablo-like. Both approaches are well documented in open projects, and they are exactly the two routes below.
+
+### Route 1: the model writes code that draws every pixel (the one that scales)
+This is what the best "code-drawn pixel art" projects do (`Gamezxz/pixel-art-studio`, `dbinky/claude-fairy-pixel-art`, most entries in `theolundqvist/frontier-games`):
+
+- **Ask for code that draws, not for images.** Claude is far better at precise pixel placement in code (Pillow `putpixel`, Canvas 2D `fillRect(x,y,1,1)`) than at image generation. One 2,700-line Pillow script generated 163 consistent assets on its first run.
+- **Spec first, palette in one place, one reference piece.** Write an asset spec (name, size, description) and a named palette dictionary before any drawing. Hand-draw or approve one reference sprite to lock the style.
+- **Hue-shifted ramps instead of flat colours.** Build each material as a 5-step ramp where shadows shift cooler and highlights warmer. Lock all assets to the same palette (presets: PICO-8, Sweetie16, Endesga32, Game Boy).
+- **Selective outlines and 2×2 Bayer dithering**, darkest ramp colour defines the silhouette, highlights only on existing pixels.
+- **Motion is parameters, not copied frames.** A walk cycle is a body template plus `bob`, `leg phase`, `swing`; a slime is squash-and-stretch that keeps volume. 4-frame idle, 8-frame walk, 6-frame attack × 4 directions is the usual set.
+- **Render tiny, scale with nearest-neighbour.** Draw at 1/5–1/8 of the output size and upscale with smoothing off (`imageSmoothingEnabled=false`, CSS `image-rendering: pixelated`, Pillow `Image.NEAREST`). Scanlines, a slight vignette and torch glow sell the "CRT" look.
+- **Determinism.** No `Math.random`; use a hash of (x, y, seed) so every render is identical and every frame is editable.
+- **The self-review loop is the quality mechanism:** render a contact sheet, let Claude look at it, critique against a rules file, fix the script, repeat 2–3 times before delivery.
+
+### Route 2: generate images in parts, then "pixelate" them (fast, less consistent)
+`ianlintner/ai-pixel-art-image-generation` packages this for Claude Code: `gpt-image-2` makes a base sprite/tile; Gemini 2.5 Flash Image makes animation frames conditioned on frame 0; then **nearest-neighbour downscale → palette quantise → optional outline → background removal**, with QA gates (palette fidelity, silhouette IoU between frames, tile-seam difference). Style is sampled once per set so all tiles match. Fixed prompt clauses: *pixel art, limited palette, no text, no borders*. Hybrid tools (`pixelpipe.py` in pixel-art-studio) recover the pixel grid from a generated image and emit an editable drawing script, which is the best of both.
+
+### Prompt for Claude Code (Route 1)
+```
+Write a Python/Pillow script (no image generation) that draws a pixel-art asset set for a dungeon game.
+Rules: 16x16 tiles, 16x24 characters, PICO-8-like 16-colour palette defined once as named ramps
+(5 steps, hue-shifted: shadows cooler, highlights warmer). Darkest colour = silhouette; selective 1px
+outline only where a sprite borders transparency; 2x2 Bayer dither for gradients. Characters are a
+body template animated by parameters (bob, leg phase, arm swing) producing a 4-frame walk; slimes use
+squash & stretch with constant volume. Export a spritesheet PNG + an 8x nearest-neighbour contact sheet.
+Then look at the contact sheet, critique silhouette readability, ramp contrast and outline consistency,
+fix the script, and re-render. Do at least two review passes.
+```
+For a *video* rather than a game, drop the same drawing functions into a Remotion `<canvas>` sized 192×342, draw the scene as a pure function of `useCurrentFrame()`, and upscale to 1080×1920 with smoothing off; captions and the hook/payoff cards stay in the HTML layer. That is exactly what `samples/remotion/src/PixelDungeon.tsx` does.
+
+### Sample 5: Pixel Dungeon (code-drawn pixel art)
+| | |
+|---|---|
+| Video | `renders/pixel_dungeon.mp4` (22 s, 1080×1920) |
+| Scene code | `samples/remotion/src/PixelDungeon.tsx` – tiles, original hero and slime, parallax towers, torches, pixel-font HUD, scanlines, all procedural, zero assets |
+| Pillow version | `samples/pixelart/gen_sprites.py` – the same sprites generated as PNGs (`sheet.png`, `stills/pixelart_sheet_x8.png`) with ramps, dithering and selective outlines |
+
+Sources for this section: https://github.com/Gamezxz/pixel-art-studio , https://github.com/dbinky/claude-fairy-pixel-art , https://github.com/ianlintner/ai-pixel-art-image-generation , https://github.com/theolundqvist/frontier-games , https://www.youtube.com/watch?v=YQ01D9xGAnk
 
 ---
 
